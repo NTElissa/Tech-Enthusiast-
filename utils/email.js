@@ -13,11 +13,21 @@ const createTransporter = () => {
       user: process.env.EMAIL_USERNAME,
       pass: process.env.EMAIL_PASSWORD,
     },
+    // Add this to avoid connection issues
+    tls: {
+      rejectUnauthorized: false
+    }
   });
 };
 
 export const sendEmail = async (to, subject, text, html = null) => {
   try {
+    // Check if email credentials are configured
+    if (!process.env.EMAIL_USERNAME || !process.env.EMAIL_PASSWORD) {
+      console.warn('Email credentials not configured properly');
+      return { success: false, message: 'Email configuration missing' };
+    }
+    
     const transporter = createTransporter();
     
     const mailOptions = {
@@ -30,10 +40,10 @@ export const sendEmail = async (to, subject, text, html = null) => {
 
     const info = await transporter.sendMail(mailOptions);
     console.log('Email sent:', info.messageId);
-    return info;
+    return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error('Error sending email:', error);
-    throw error;
+    return { success: false, error: error.message };
   }
 };
 

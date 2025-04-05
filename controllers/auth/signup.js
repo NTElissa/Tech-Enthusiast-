@@ -1,3 +1,5 @@
+// controllers/auth/signup.js
+
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -86,17 +88,28 @@ export const signup = async (req, res) => {
       { expiresIn: '1h' }
     );
 
-    // Send verification email
+    // Try to send verification email but don't fail registration if email fails
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
     
-    await sendEmail(
-      newUser.email,
-      'Email Verification',
-      `Please verify your email by clicking on the following link: ${verificationLink}`
-    );
+    try {
+      const emailResult = await sendEmail(
+        newUser.email,
+        'Email Verification',
+        `Please verify your email by clicking on the following link: ${verificationLink}`
+      );
+      
+      if (!emailResult.success) {
+        console.warn('Failed to send verification email, but user was created:', emailResult.error);
+      }
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      // We continue registration process even if email fails
+    }
 
     res.status(STATUS_CODES.CREATED).json({ 
-      message: 'User created successfully. Please check your email for verification.',
+      message: 'User created successfully. If configured, a verification email has been sent.',
+      verificationRequired: true,
+      verificationToken, // Only include this in development environment
       token 
     });
   } catch (error) {
